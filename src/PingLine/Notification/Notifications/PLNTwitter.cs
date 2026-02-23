@@ -23,7 +23,7 @@ internal class PLNTwitter : IPingLineNotifier
 
         Console.WriteLine("Pingline does not have access to the Twitter/X api. So we need to use RSS.");
         Console.WriteLine("Write {account} where the account handle should go like @example.");
-        Console.WriteLine("Examples: nitter.net/{account}/rss");
+        Console.WriteLine("Examples: https://nitter.net/{account}/rss");
 
         while (true)
         {
@@ -31,6 +31,13 @@ internal class PLNTwitter : IPingLineNotifier
             var rss = Console.ReadLine();
             if(string.IsNullOrEmpty(rss)) continue;
 
+            if (!rss.Contains("https://") || rss.Contains("http://"))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Please include https:// or http:// in the url.");
+                Console.ForegroundColor = ConsoleColor.White;
+                continue;
+            }
             if (!rss.Contains("{account}"))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
