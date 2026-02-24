@@ -31,7 +31,7 @@ internal class PLNTwitter : IPingLineNotifier
             var rss = Console.ReadLine();
             if(string.IsNullOrEmpty(rss)) continue;
 
-            if (!rss.StartsWith("https://") || rss.StartsWith("http://"))
+            if (!rss.StartsWith("https://") && !rss.StartsWith("http://"))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("Please start the url with https:// or http://.");
