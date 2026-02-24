@@ -60,7 +60,7 @@ internal class PLNTumblr : IPingLineNotifier
         {
             var xml = await client.GetStringAsync(rssUrl);
             var feed = XDocument.Parse(xml);
-            var items = feed.Root?.Descendants("item");
+            var items = feed.Root?.Element("channel")?.Descendants("item");
             var notifs = new List<Notification>();
 
             var firstItem = items?.FirstOrDefault();
