@@ -31,10 +31,10 @@ internal class PLNTwitter : IPingLineNotifier
             var rss = Console.ReadLine();
             if(string.IsNullOrEmpty(rss)) continue;
 
-            if (!rss.Contains("https://") || rss.Contains("http://"))
+            if (!rss.StartsWith("https://") || rss.StartsWith("http://"))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Please include https:// or http:// in the url.");
+                Console.WriteLine("Please start the url with https:// or http://.");
                 Console.ForegroundColor = ConsoleColor.White;
                 continue;
             }
