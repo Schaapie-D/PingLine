@@ -109,6 +109,7 @@ internal class PLNYoutube : IPingLineNotifier
 
     private void ProcessItem(XElement item, List<Notification> notifications)
     {
+        var vidID = item.Element(yt + "videoId")?.Value ?? "";
         var title = item.Element(atom + "title")?.Value ?? "(untitled)";
         var link = item.Element(atom + "link")?.Attribute("href")?.Value ?? $"https://youtube.com/channel/{channelId}";
         var pubDate = item.Element(atom + "published")?.Value;
@@ -120,7 +121,7 @@ internal class PLNYoutube : IPingLineNotifier
         {
             Message = $"{channelName} uploaded \"{title}\"",
             Sender = this,
-            ImageSourceURL = ExtractThumbImage(item),
+            ImageSourceURL = $"https://i.ytimg.com/vi/{vidID}/mqdefault.jpg",
             ImageHeight = 20,
             GoToLink = link,
             Time = time
@@ -156,36 +157,4 @@ internal class PLNYoutube : IPingLineNotifier
     }
 
     public string GetName() => Name;
-
-    public static string? ExtractThumbImage(XElement item)
-    {
-        XNamespace media = "http://search.yahoo.com/mrss/";
-
-        // Find <media:group>
-        var group = item.Element(media + "group");
-        if (group == null) return null;
-
-        // Get all thumbnails
-        var thumbs = group.Elements(media + "thumbnail").ToList();
-        if (thumbs.Count == 0) return null;
-
-        if (thumbs.Count == 1)
-            return thumbs[0].Attribute("url")?.Value;
-
-        XElement? best = null;
-        int bestWidth = -1;
-
-        foreach (var t in thumbs)
-        {
-            int width = int.TryParse(t.Attribute("width")?.Value, out var w) ? w : 0;
-
-            if (width > bestWidth)
-            {
-                bestWidth = width;
-                best = t;
-            }
-        }
-
-        return best?.Attribute("url")?.Value;
-    }
 }
