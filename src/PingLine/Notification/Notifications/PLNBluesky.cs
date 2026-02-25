@@ -61,7 +61,14 @@ internal class PLNBluesky : IPingLineNotifier
         {
             var xml = await client.GetStringAsync(rssUrl);
             var feed = XDocument.Parse(xml);
-            var items = feed.Root?.Element("channel")?.Descendants("item");
+            var items = feed.Root?.Element("channel")?
+                .Descendants("item")
+                .OrderByDescending(item =>
+                {
+                    var pubDateStr = item.Element("pubDate")?.Value;
+                    return DateTime.TryParse(pubDateStr, out var dt) ? dt : DateTime.MinValue;
+                })
+                .ToList();
             var notifs = new List<Notification>();
 
             var firstItem = items?.FirstOrDefault();
@@ -74,7 +81,7 @@ internal class PLNBluesky : IPingLineNotifier
                 return notifs.ToArray();
             }
 
-            foreach (var item in items ?? Array.Empty<XElement>())
+            foreach (var item in items ?? new())
             {
                 var guid = item.Element("guid")?.Value ?? "";
 
