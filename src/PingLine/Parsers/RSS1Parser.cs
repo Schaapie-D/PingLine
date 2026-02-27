@@ -82,7 +82,7 @@ public class RSS1Parser
             Title = GetXElement(item, "title")?.Value ?? throw new InvalidDataException("Item missing title"),
             Link = GetXElement(item, "link")?.Value ?? throw new InvalidDataException("Item missing link"),
             Description = GetXElement(item, "description")?.Value,
-            Raw = item.Elements().ToArray()
+            Raw = item
         };
     }
 
@@ -111,5 +111,5 @@ public sealed class RSS1Item
     public string Title = null!;
     public string Link = null!;
     public string? Description;
-    public XElement[] Raw = null!;
+    public XElement Raw = null!;
 }

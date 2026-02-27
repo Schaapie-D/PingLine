@@ -63,7 +63,7 @@ public class Atom1Parser
     {
         var summaryElement = GetXElement(item, "summary");
         var contentElement = GetXElement(item, "content");
-        string? content;
+        string? content = null;
 
         if (summaryElement != null)
         {
@@ -76,10 +76,6 @@ public class Atom1Parser
             content = type == "xhtml"
                 ? contentElement.Elements().FirstOrDefault()?.ToString(SaveOptions.DisableFormatting)
                 : contentElement.Value;
-        }
-        else
-        {
-            throw new InvalidDataException("Entry missing summary/content");
         }
 
         var imageURL = GetXElements(item, "link")?.FirstOrDefault(l => l.Attribute("rel")?.Value == "enclosure" && (l.Attribute("type")?.Value ?? "").StartsWith("image/"))?.Attribute("href")?.Value
@@ -94,7 +90,7 @@ public class Atom1Parser
             AuthorName = GetXElement(GetXElement(item, "author"), "name")?.Value ?? AuthorName,
             Published = DateTime.TryParse(GetXElement(item, "published")?.Value ?? GetXElement(item, "updated")?.Value, out var dt) ? dt : DateTime.MinValue,
             ImageURL = imageURL,
-            Raw = item.Elements().ToArray(),
+            Raw = item,
         };
     }
 
@@ -126,5 +122,5 @@ public sealed class Atom1Entry
     public string AuthorName = null!;
     public DateTime Published;
     public string? ImageURL;
-    public XElement[] Raw = null!;
+    public XElement Raw = null!;
 }

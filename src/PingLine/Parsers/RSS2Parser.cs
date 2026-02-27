@@ -68,7 +68,7 @@ public class RSS2Parser
             ImageURL = item.Element(media + "content")?.Attribute("url")?.Value
                 ?? item.Element(media + "thumbnail")?.Attribute("url")?.Value
                 ?? GetXElement(item, "enclosure")?.Attribute("url")?.Value,
-            Raw = item.Elements().ToArray()
+            Raw = item
         };
     }
 
@@ -99,5 +99,5 @@ public sealed class RSS2Entry
     public string? Description;
     public DateTime PubDate;
     public string? ImageURL;
-    public XElement[] Raw = null!;
+    public XElement Raw = null!;
 }
