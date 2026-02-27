@@ -1,35 +1,37 @@
-﻿using System.Xml.Linq;
+using System;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using PingLine.Parsers;
 
 namespace PingLine.Notification.Notifications;
 
-internal class PLNTumblr : IPingLineNotifier
+internal class PLNRSS2 : IPingLineNotifier
 {
-    public const string Name = "tumblr";
-    public const string TypeName = Name;
+    public string Name => parser.ChannelTitle;
+    public const string TypeName = "rss2";
     public string id { get; set; }
-    public ConsoleColor TextColor { get; set; } = ConsoleColor.Magenta;
+    public ConsoleColor TextColor { get; set; } = ConsoleColor.White;
 
-    private string blogName = null!;
     private string rssUrl = null!;
     private string lastPostId = "f";
 
-    private readonly HttpClient client = new();
+    private RSS2Parser parser = null!;
 
-    public PLNTumblr(string id, bool askArgs = true)
+    public PLNRSS2(string id, bool askArgs = true)
     {
         this.id = id;
 
         if(!askArgs) return;
 
+        var client = new HttpClient();
+
         while (true)
         {
-            Console.Write("Blog handle: ");
-            var handle = Console.ReadLine();
-            if(string.IsNullOrEmpty(handle)) continue;
+            Console.Write("RSS url: ");
+            var url = Console.ReadLine();
+            if(string.IsNullOrEmpty(url)) continue;
 
-            handle = handle.Replace("@", "");
-            rssUrl = $"https://{handle}.tumblr.com/rss";
+            rssUrl = url;
 
             try
             {
@@ -50,7 +52,8 @@ internal class PLNTumblr : IPingLineNotifier
                 continue;
             }
 
-            blogName = handle;
+            parser = new RSS2Parser(rssUrl);
+
             break;
         }
     }
@@ -59,20 +62,12 @@ internal class PLNTumblr : IPingLineNotifier
     {
         try
         {
-            var xml = await client.GetStringAsync(rssUrl);
-            var feed = XDocument.Parse(xml);
-            var items = feed.Root?.Element("channel")?
-                .Descendants("item")
-                .OrderByDescending(item =>
-                {
-                    var pubDateStr = item.Element("pubDate")?.Value;
-                    return DateTime.TryParse(pubDateStr, out var dt) ? dt : DateTime.MinValue;
-                })
-                .ToList();
+            var items = await parser.GetAndParseFeed();
             var notifs = new List<Notification>();
 
             var firstItem = items?.FirstOrDefault();
-            var newestID = firstItem?.Element("guid")?.Value ?? "";
+            if(firstItem == null) return Array.Empty<Notification>();
+            var newestID = firstItem.GUID;
 
             if(lastPostId == "f" && firstItem != null)
             {
@@ -81,9 +76,9 @@ internal class PLNTumblr : IPingLineNotifier
                 return notifs.ToArray();
             }
 
-            foreach (var item in items ?? new())
+            foreach (var item in items!)
             {
-                var guid = item.Element("guid")?.Value ?? "";
+                var guid = item.GUID;
 
                 if (guid == lastPostId)
                     break;
@@ -102,23 +97,15 @@ internal class PLNTumblr : IPingLineNotifier
         return Array.Empty<Notification>();
     }
 
-    public void ProcessItem(XElement item, List<Notification> notifications)
+    public void ProcessItem(RSS2Entry item, List<Notification> notifications)
     {
-        var title = item.Element("title")?.Value ?? "(untitled post)";
-        var description = item.Element("description")?.Value ?? title;
-        var link = item.Element("link")?.Value ?? $"https://{blogName}.tumblr.com";
-        var pubDate = item.Element("pubDate")?.Value ?? null;
-        DateTime time;
-
-        if(pubDate == null || !DateTime.TryParse(pubDate, out time)) time = DateTime.Now;
-
         var notification = new Notification()
         {
-            Message = $"@{blogName} posted \"{title}\"",
+            Message = item.Title,
             Sender = this,
-            ImageSourceURL = ExtractMainImage(description),
-            GoToLink = link,
-            Time = time
+            ImageSourceURL = item.ImageURL ?? ExtractMainImage(item.Description ?? ""),
+            GoToLink = item.Link,
+            Time = item.PubDate
         };
         notifications.Add(notification);
     }
@@ -127,15 +114,14 @@ internal class PLNTumblr : IPingLineNotifier
     {
         writer.Write(TypeName);
         writer.Write(id);
-        writer.Write(blogName);
         writer.Write(rssUrl);
     }
 
     public static IPingLineNotifier CreateFromSave(string notifID, BinaryReader reader)
     {
-        var saved = new PLNTumblr(notifID, false);
-        saved.blogName = reader.ReadString();
+        var saved = new PLNRSS2(notifID, false);
         saved.rssUrl = reader.ReadString();
+        saved.parser = new RSS2Parser(saved.rssUrl);
         return saved;
     }
 

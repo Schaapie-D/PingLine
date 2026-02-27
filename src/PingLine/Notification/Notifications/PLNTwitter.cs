@@ -6,6 +6,7 @@ namespace PingLine.Notification.Notifications;
 internal class PLNTwitter : IPingLineNotifier
 {
     public const string Name = "twitter";
+    public const string TypeName = Name;
     public string id { get; set; }
     public ConsoleColor TextColor { get; set; } = ConsoleColor.Blue;
 
@@ -153,7 +154,7 @@ internal class PLNTwitter : IPingLineNotifier
 
     public void AppendSaveInfo(BinaryWriter writer)
     {
-        writer.Write(Name);
+        writer.Write(TypeName);
         writer.Write(id);
         writer.Write(accountName);
         writer.Write(rssUrl);
@@ -168,9 +169,9 @@ internal class PLNTwitter : IPingLineNotifier
     }
 
     public string GetName() => Name;
+    public string GetTypeName() => TypeName;
 
     private static readonly Regex ImgRegex = new Regex("<img[^>]+src=[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     public static string? ExtractMainImage(XElement item)
     {
         if (item == null) return null;

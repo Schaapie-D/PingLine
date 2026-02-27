@@ -7,6 +7,7 @@ namespace PingLine.Notification.Notifications;
 internal class PLNBluesky : IPingLineNotifier
 {
     public const string Name = "bluesky";
+    public const string TypeName = Name;
     public string id { get; set; }
     public ConsoleColor TextColor { get; set; } = ConsoleColor.Cyan;
 
@@ -125,7 +126,7 @@ internal class PLNBluesky : IPingLineNotifier
 
     public void AppendSaveInfo(BinaryWriter writer)
     {
-        writer.Write(Name);
+        writer.Write(TypeName);
         writer.Write(id);
         writer.Write(accountName);
         writer.Write(rssUrl);
@@ -140,6 +141,7 @@ internal class PLNBluesky : IPingLineNotifier
     }
 
     public string GetName() => Name;
+    public string GetTypeName() => TypeName;
 
     public async static Task<string?> ExtractMainImage(string guid)
     {

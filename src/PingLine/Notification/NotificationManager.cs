@@ -20,12 +20,15 @@ internal static class NotificationManager
         IPingLineNotifier newNotifier;
         switch (notifierType)
         {
-            case PLNTumblr.Name: newNotifier = new PLNTumblr(notifierID); break;
-            case PLNTime.Name: newNotifier = new PLNTime(notifierID); break;
-            case PLNTimer.Name: newNotifier = new PLNTimer(notifierID); break;
-            case PLNYoutube.Name: newNotifier = new PLNYoutube(notifierID); break;
-            case PLNBluesky.Name: newNotifier = new PLNBluesky(notifierID); break;
-            case PLNTwitter.Name: newNotifier = new PLNTwitter(notifierID); break;
+            case PLNTumblr.TypeName: newNotifier = new PLNTumblr(notifierID); break;
+            case PLNTime.TypeName: newNotifier = new PLNTime(notifierID); break;
+            case PLNTimer.TypeName: newNotifier = new PLNTimer(notifierID); break;
+            case PLNYoutube.TypeName: newNotifier = new PLNYoutube(notifierID); break;
+            case PLNBluesky.TypeName: newNotifier = new PLNBluesky(notifierID); break;
+            case PLNTwitter.TypeName: newNotifier = new PLNTwitter(notifierID); break;
+            case PLNRSS1.TypeName: newNotifier = new PLNRSS1(notifierID); break;
+            case PLNRSS2.TypeName: newNotifier = new PLNRSS2(notifierID); break;
+            case PLNAtom1.TypeName: newNotifier = new PLNAtom1(notifierID); break;
 
             default:
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -152,12 +155,15 @@ internal static class NotificationManager
             string notifierID = reader.ReadString();
             switch (notifierName)
             {
-                case PLNTumblr.Name: Notifiers.Add(PLNTumblr.CreateFromSave(notifierID, reader)); break;
-                case PLNTime.Name: Notifiers.Add(PLNTime.CreateFromSave(notifierID, reader)); break;
-                case PLNTimer.Name: Notifiers.Add(PLNTimer.CreateFromSave(notifierID, reader)); break;
-                case PLNYoutube.Name: Notifiers.Add(PLNYoutube.CreateFromSave(notifierID, reader)); break;
-                case PLNBluesky.Name: Notifiers.Add(PLNBluesky.CreateFromSave(notifierID, reader)); break;
-                case PLNTwitter.Name: Notifiers.Add(PLNTwitter.CreateFromSave(notifierID, reader)); break;
+                case PLNTumblr.TypeName: Notifiers.Add(PLNTumblr.CreateFromSave(notifierID, reader)); break;
+                case PLNTime.TypeName: Notifiers.Add(PLNTime.CreateFromSave(notifierID, reader)); break;
+                case PLNTimer.TypeName: Notifiers.Add(PLNTimer.CreateFromSave(notifierID, reader)); break;
+                case PLNYoutube.TypeName: Notifiers.Add(PLNYoutube.CreateFromSave(notifierID, reader)); break;
+                case PLNBluesky.TypeName: Notifiers.Add(PLNBluesky.CreateFromSave(notifierID, reader)); break;
+                case PLNTwitter.TypeName: Notifiers.Add(PLNTwitter.CreateFromSave(notifierID, reader)); break;
+                case PLNRSS1.TypeName: Notifiers.Add(PLNRSS1.CreateFromSave(notifierID, reader)); break;
+                case PLNRSS2.TypeName: Notifiers.Add(PLNRSS2.CreateFromSave(notifierID, reader)); break;
+                case PLNAtom1.TypeName: Notifiers.Add(PLNAtom1.CreateFromSave(notifierID, reader)); break;
 
                 default:
                     Console.ForegroundColor = ConsoleColor.Red;
@@ -206,6 +212,7 @@ internal interface IPingLineNotifier
     string id { get; set; }
     ConsoleColor TextColor { get; set; }
     string GetName();
+    string GetTypeName();
     Task<Notification[]> Process();
     void AppendSaveInfo(BinaryWriter writer);
 }

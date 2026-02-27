@@ -3,6 +3,7 @@
 internal class PLNTime : IPingLineNotifier
 {
     public const string Name = "time";
+    public const string TypeName = Name;
     public string id { get; set; }
     public ConsoleColor TextColor { get; set; } = ConsoleColor.White;
 
@@ -76,7 +77,7 @@ internal class PLNTime : IPingLineNotifier
 
     public void AppendSaveInfo(BinaryWriter writer)
     {
-        writer.Write(Name);
+        writer.Write(TypeName);
         writer.Write(id);
         writer.Write($"{TriggerTime.Hours}:{TriggerTime.Minutes}:{TriggerTime.Seconds}");
         writer.Write(TimeText);
@@ -105,4 +106,5 @@ internal class PLNTime : IPingLineNotifier
     }
 
     public string GetName() => Name;
+    public string GetTypeName() => TypeName;
 }

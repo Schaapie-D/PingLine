@@ -186,11 +186,14 @@ internal class Program
     static void ListPingTypes()
     {
         Console.WriteLine("Available Ping Types:");
-        Console.WriteLine("- Youtube");
-        Console.WriteLine("- Twitter");
-        Console.WriteLine("- Bluesky");
-        Console.WriteLine("- Tumblr");
-        Console.WriteLine("- Time");
-        Console.WriteLine("- Timer");
+        Console.WriteLine("- Youtube  (youtube)");
+        Console.WriteLine("- Twitter  (twitter)");
+        Console.WriteLine("- Bluesky  (bluesky)");
+        Console.WriteLine("- Tumblr   (tumblr)");
+        Console.WriteLine("- RSS 1.0  (rss1)");
+        Console.WriteLine("- RSS 2.0  (rss2)");
+        Console.WriteLine("- Atom 1.0 (atom1)");
+        Console.WriteLine("- Time     (time)");
+        Console.WriteLine("- Timer    (timer)");
     }
 }

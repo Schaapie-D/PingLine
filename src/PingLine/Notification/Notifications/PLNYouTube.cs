@@ -5,6 +5,7 @@ namespace PingLine.Notification.Notifications;
 internal class PLNYoutube : IPingLineNotifier
 {
     public const string Name = "youtube";
+    public const string TypeName = Name;
     public string id { get; set; }
     public ConsoleColor TextColor { get; set; } = ConsoleColor.Red;
 
@@ -141,7 +142,7 @@ internal class PLNYoutube : IPingLineNotifier
 
     public void AppendSaveInfo(BinaryWriter writer)
     {
-        writer.Write(Name);
+        writer.Write(TypeName);
         writer.Write(id);
         writer.Write(channelId);
         writer.Write(rssUrl);
@@ -157,4 +158,5 @@ internal class PLNYoutube : IPingLineNotifier
     }
 
     public string GetName() => Name;
+    public string GetTypeName() => TypeName;
 }
