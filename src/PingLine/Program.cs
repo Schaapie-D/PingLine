@@ -91,7 +91,7 @@ internal class Program
                 break;
             case "lspingid":
                 foreach (var n in NotificationManager.Notifiers)
-                    Console.WriteLine($"{n.GetName()}:{n.id}");
+                    Console.WriteLine($"{n.GetTypeName()}:{n.id}");
                 skipRewrite = true;
                 break;
             case "lspingtype":
