@@ -16,6 +16,8 @@ A simple, cross-platform, TUI-based notification manager.
 - Tumblr
 - Time
 - Timer
+- RSS 1.0 and 2.0
+- Atom 1.0
 
 ## Installation
 ### Requirements
