@@ -92,7 +92,6 @@ internal class PLNYoutube : IPingLineNotifier
         }
         catch
         {
-            throw;
         }
 
         return Array.Empty<Notification>();
