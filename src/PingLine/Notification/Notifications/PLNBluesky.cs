@@ -1,6 +1,7 @@
 using System.Xml.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using PingLine.Parsers;
 
 namespace PingLine.Notification.Notifications;
 
@@ -16,6 +17,7 @@ internal class PLNBluesky : IPingLineNotifier
     private string lastPostId = "f";
 
     private static readonly HttpClient client = new();
+    private RSS2Parser parser = null!;
 
     public PLNBluesky(string id, bool askArgs = true)
     {
@@ -52,6 +54,7 @@ internal class PLNBluesky : IPingLineNotifier
             }
 
             accountName = handle;
+            parser = new RSS2Parser(rssUrl);
             break;
         }
     }
@@ -60,20 +63,12 @@ internal class PLNBluesky : IPingLineNotifier
     {
         try
         {
-            var xml = await client.GetStringAsync(rssUrl);
-            var feed = XDocument.Parse(xml);
-            var items = feed.Root?.Element("channel")?
-                .Descendants("item")
-                .OrderByDescending(item =>
-                {
-                    var pubDateStr = item.Element("pubDate")?.Value;
-                    return DateTime.TryParse(pubDateStr, out var dt) ? dt : DateTime.MinValue;
-                })
-                .ToList();
+            var items = await parser.GetAndParseFeed();
             var notifs = new List<Notification>();
 
             var firstItem = items?.FirstOrDefault();
-            var newestID = firstItem?.Element("guid")?.Value ?? "";
+            if(firstItem == null) return Array.Empty<Notification>();
+            var newestID = firstItem.GUID;
 
             if(lastPostId == "f" && firstItem != null)
             {
@@ -82,11 +77,9 @@ internal class PLNBluesky : IPingLineNotifier
                 return notifs.ToArray();
             }
 
-            foreach (var item in items ?? new())
+            foreach (var item in items!)
             {
-                var guid = item.Element("guid")?.Value ?? "";
-
-                if (guid == lastPostId)
+                if (item.GUID == lastPostId)
                     break;
 
                 await ProcessItem(item, notifs);
@@ -103,23 +96,15 @@ internal class PLNBluesky : IPingLineNotifier
         return Array.Empty<Notification>();
     }
 
-    public async Task ProcessItem(XElement item, List<Notification> notifications)
+    public async Task ProcessItem(RSS2Entry item, List<Notification> notifications)
     {
-        var guid = item.Element("guid")?.Value ?? "";
-        var title = item.Element("description")?.Value ?? "(untitled post)";
-        var link = item.Element("link")?.Value ?? $"https://bsky.app/profile/{accountName}";
-        var pubDate = item.Element("pubDate")?.Value ?? null;
-        DateTime time;
-
-        if(pubDate == null || !DateTime.TryParse(pubDate, out time)) time = DateTime.Now;
-
         var notification = new Notification()
         {
-            Message = $"@{accountName} posted \"{title}\"",
+            Message = $"@{accountName} posted \"{item.Title}\"",
             Sender = this,
-            ImageSourceURL = await ExtractMainImage(guid),
-            GoToLink = link,
-            Time = time
+            ImageSourceURL = await ExtractMainImage(item.GUID),
+            GoToLink = item.Link,
+            Time = item.PubDate
         };
         notifications.Add(notification);
     }
@@ -137,6 +122,7 @@ internal class PLNBluesky : IPingLineNotifier
         var saved = new PLNBluesky(notifID, false);
         saved.accountName = reader.ReadString();
         saved.rssUrl = reader.ReadString();
+        saved.parser = new RSS2Parser(saved.rssUrl);
         return saved;
     }
 

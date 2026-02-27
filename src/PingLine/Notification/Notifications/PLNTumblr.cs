@@ -1,5 +1,6 @@
 ﻿using System.Xml.Linq;
 using System.Text.RegularExpressions;
+using PingLine.Parsers;
 
 namespace PingLine.Notification.Notifications;
 
@@ -15,6 +16,7 @@ internal class PLNTumblr : IPingLineNotifier
     private string lastPostId = "f";
 
     private readonly HttpClient client = new();
+    private RSS2Parser parser = null!;
 
     public PLNTumblr(string id, bool askArgs = true)
     {
@@ -51,6 +53,7 @@ internal class PLNTumblr : IPingLineNotifier
             }
 
             blogName = handle;
+            parser = new RSS2Parser(rssUrl);
             break;
         }
     }
@@ -59,20 +62,12 @@ internal class PLNTumblr : IPingLineNotifier
     {
         try
         {
-            var xml = await client.GetStringAsync(rssUrl);
-            var feed = XDocument.Parse(xml);
-            var items = feed.Root?.Element("channel")?
-                .Descendants("item")
-                .OrderByDescending(item =>
-                {
-                    var pubDateStr = item.Element("pubDate")?.Value;
-                    return DateTime.TryParse(pubDateStr, out var dt) ? dt : DateTime.MinValue;
-                })
-                .ToList();
+            var items = await parser.GetAndParseFeed();
             var notifs = new List<Notification>();
 
             var firstItem = items?.FirstOrDefault();
-            var newestID = firstItem?.Element("guid")?.Value ?? "";
+            if(firstItem == null) return Array.Empty<Notification>();
+            var newestID = firstItem.GUID;
 
             if(lastPostId == "f" && firstItem != null)
             {
@@ -81,11 +76,9 @@ internal class PLNTumblr : IPingLineNotifier
                 return notifs.ToArray();
             }
 
-            foreach (var item in items ?? new())
+            foreach (var item in items!)
             {
-                var guid = item.Element("guid")?.Value ?? "";
-
-                if (guid == lastPostId)
+                if (item.GUID == lastPostId)
                     break;
 
                 ProcessItem(item, notifs);
@@ -102,23 +95,15 @@ internal class PLNTumblr : IPingLineNotifier
         return Array.Empty<Notification>();
     }
 
-    public void ProcessItem(XElement item, List<Notification> notifications)
+    public void ProcessItem(RSS2Entry item, List<Notification> notifications)
     {
-        var title = item.Element("title")?.Value ?? "(untitled post)";
-        var description = item.Element("description")?.Value ?? title;
-        var link = item.Element("link")?.Value ?? $"https://{blogName}.tumblr.com";
-        var pubDate = item.Element("pubDate")?.Value ?? null;
-        DateTime time;
-
-        if(pubDate == null || !DateTime.TryParse(pubDate, out time)) time = DateTime.Now;
-
         var notification = new Notification()
         {
-            Message = $"@{blogName} posted \"{title}\"",
+            Message = $"@{blogName} posted \"{item.Title}\"",
             Sender = this,
-            ImageSourceURL = ExtractMainImage(description),
-            GoToLink = link,
-            Time = time
+            ImageSourceURL = ExtractMainImage(item.Description ?? ""),
+            GoToLink = item.Link,
+            Time = item.PubDate
         };
         notifications.Add(notification);
     }
@@ -136,6 +121,7 @@ internal class PLNTumblr : IPingLineNotifier
         var saved = new PLNTumblr(notifID, false);
         saved.blogName = reader.ReadString();
         saved.rssUrl = reader.ReadString();
+        saved.parser = new RSS2Parser(saved.rssUrl);
         return saved;
     }
 

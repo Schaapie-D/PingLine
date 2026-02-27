@@ -1,4 +1,5 @@
 ﻿using System.Xml.Linq;
+using PingLine.Parsers;
 
 namespace PingLine.Notification.Notifications;
 
@@ -10,14 +11,13 @@ internal class PLNYoutube : IPingLineNotifier
     public ConsoleColor TextColor { get; set; } = ConsoleColor.Red;
 
     private string channelId = null!;
-    private string? channelName;
-    private string rssUrl = null!;
+    private string atomUrl = null!;
     private string lastVideoId = "f";
 
     private readonly HttpClient client = new();
+    private Atom1Parser parser = null!;
 
-    readonly XNamespace atom = "http://www.w3.org/2005/Atom";
-    readonly XNamespace yt = "http://www.youtube.com/xml/schemas/2015";
+    private static readonly XNamespace yt = "http://www.youtube.com/xml/schemas/2015";
 
     public PLNYoutube(string id, bool askArgs = true)
     {
@@ -33,15 +33,15 @@ internal class PLNYoutube : IPingLineNotifier
             var cID = Console.ReadLine();
             if(string.IsNullOrEmpty(cID)) continue;
 
-            rssUrl = $"https://www.youtube.com/feeds/videos.xml?channel_id={cID}";
+            atomUrl = $"https://www.youtube.com/feeds/videos.xml?channel_id={cID}";
 
             try
             {
-                var response = client.GetAsync(rssUrl).Result;
+                var response = client.GetAsync(atomUrl).Result;
                 if (!response.IsSuccessStatusCode)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Failed to data from {rssUrl}. Please check for typos.");
+                    Console.WriteLine($"Failed to data from {atomUrl}. Please check for typos.");
                     Console.ForegroundColor = ConsoleColor.White;
                     continue;
                 }
@@ -49,15 +49,13 @@ internal class PLNYoutube : IPingLineNotifier
             catch
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Failed to data from {rssUrl}. Please check for typos.");
+                Console.WriteLine($"Failed to data from {atomUrl}. Please check for typos.");
                 Console.ForegroundColor = ConsoleColor.White;
                 continue;
             }
 
             channelId = cID;
-
-            GetChannelName();
-
+            parser = new Atom1Parser(atomUrl);
             break;
         }
     }
@@ -66,19 +64,12 @@ internal class PLNYoutube : IPingLineNotifier
     {
         try
         {
-            var xml = await client.GetStringAsync(rssUrl);
-            var feed = XDocument.Parse(xml);
-            var items = feed.Root?.Descendants(atom + "entry")
-                .OrderByDescending(item =>
-                {
-                    var pubDateStr = item.Element(atom + "published")?.Value;
-                    return DateTime.TryParse(pubDateStr, out var dt) ? dt : DateTime.MinValue;
-                })
-                .ToList();
+            var items = await parser.GetAndParseFeed();
             var notifs = new List<Notification>();
 
             var firstItem = items?.FirstOrDefault();
-            var newestID = firstItem?.Element(yt + "videoId")?.Value ?? "";
+            if(firstItem == null) return Array.Empty<Notification>();
+            var newestID = firstItem.ID;
 
             if(lastVideoId == "f" && firstItem != null)
             {
@@ -87,11 +78,9 @@ internal class PLNYoutube : IPingLineNotifier
                 return notifs.ToArray();
             }
 
-            foreach (var item in items ?? new())
+            foreach (var item in items!)
             {
-                var guid = item.Element(yt + "videoId")?.Value ?? "";
-
-                if (guid == lastVideoId)
+                if (item.ID == lastVideoId)
                     break;
 
                 ProcessItem(item, notifs);
@@ -103,41 +92,26 @@ internal class PLNYoutube : IPingLineNotifier
         }
         catch
         {
+            throw;
         }
 
         return Array.Empty<Notification>();
     }
 
-    private void ProcessItem(XElement item, List<Notification> notifications)
+    private void ProcessItem(Atom1Entry item, List<Notification> notifications)
     {
-        var vidID = item.Element(yt + "videoId")?.Value ?? "";
-        var title = item.Element(atom + "title")?.Value ?? "(untitled)";
-        var link = item.Element(atom + "link")?.Attribute("href")?.Value ?? $"https://youtube.com/channel/{channelId}";
-        var pubDate = item.Element(atom + "published")?.Value;
-        DateTime time;
-
-        if(pubDate == null || !DateTime.TryParse(pubDate, out time)) time = DateTime.Now;
+        var vidID = item.Raw.Element(yt + "videoId")?.Value ?? "";
 
         var notification = new Notification()
         {
-            Message = $"{channelName} uploaded \"{title}\"",
+            Message = $"{item.AuthorName} uploaded \"{item.Title}\"",
             Sender = this,
             ImageSourceURL = $"https://i.ytimg.com/vi/{vidID}/mqdefault.jpg",
             ImageHeight = 20,
-            GoToLink = link,
-            Time = time
+            GoToLink = item.Link,
+            Time = item.Published
         };
         notifications.Add(notification);
-    }
-
-    public void GetChannelName()
-    {
-        string xml = client.GetStringAsync(rssUrl).Result;
-        var feed = XDocument.Parse(xml);
-
-        channelName = feed.Root?
-            .Element(atom + "author")?
-            .Element(atom + "name")?.Value ?? "Unknown";
     }
 
     public void AppendSaveInfo(BinaryWriter writer)
@@ -145,15 +119,15 @@ internal class PLNYoutube : IPingLineNotifier
         writer.Write(TypeName);
         writer.Write(id);
         writer.Write(channelId);
-        writer.Write(rssUrl);
+        writer.Write(atomUrl);
     }
 
     public static IPingLineNotifier CreateFromSave(string notifID, BinaryReader reader)
     {
         var saved = new PLNYoutube(notifID, false);
         saved.channelId = reader.ReadString();
-        saved.rssUrl = reader.ReadString();
-        saved.GetChannelName();
+        saved.atomUrl = reader.ReadString();
+        saved.parser = new Atom1Parser(saved.atomUrl);
         return saved;
     }
 

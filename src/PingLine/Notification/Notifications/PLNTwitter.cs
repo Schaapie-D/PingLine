@@ -1,5 +1,6 @@
 using System.Xml.Linq;
 using System.Text.RegularExpressions;
+using PingLine.Parsers;
 
 namespace PingLine.Notification.Notifications;
 
@@ -15,6 +16,7 @@ internal class PLNTwitter : IPingLineNotifier
     private string lastPostId = "f";
 
     private static readonly HttpClient client = new();
+    private RSS2Parser parser = null!;
 
     public PLNTwitter(string id, bool askArgs = true)
     {
@@ -80,6 +82,7 @@ internal class PLNTwitter : IPingLineNotifier
 
             rssUrl = rss;
             accountName = handle;
+            parser = new RSS2Parser(rssUrl);
             break;
         }
     }
@@ -88,20 +91,12 @@ internal class PLNTwitter : IPingLineNotifier
     {
         try
         {
-            var xml = await client.GetStringAsync(rssUrl);
-            var feed = XDocument.Parse(xml);
-            var items = feed.Root?.Element("channel")?
-                .Descendants("item")
-                .OrderByDescending(item =>
-                {
-                    var pubDateStr = item.Element("pubDate")?.Value;
-                    return DateTime.TryParse(pubDateStr, out var dt) ? dt : DateTime.MinValue;
-                })
-                .ToList();
+            var items = await parser.GetAndParseFeed();
             var notifs = new List<Notification>();
 
             var firstItem = items?.FirstOrDefault();
-            var newestID = firstItem?.Element("guid")?.Value ?? "";
+            if(firstItem == null) return Array.Empty<Notification>();
+            var newestID = firstItem.GUID;
 
             if(lastPostId == "f" && firstItem != null)
             {
@@ -110,11 +105,9 @@ internal class PLNTwitter : IPingLineNotifier
                 return notifs.ToArray();
             }
 
-            foreach (var item in items ?? new())
+            foreach (var item in items!)
             {
-                var guid = item.Element("guid")?.Value ?? "";
-
-                if (guid == lastPostId)
+                if (item.GUID == lastPostId)
                     break;
 
                 await ProcessItem(item, notifs);
@@ -131,23 +124,15 @@ internal class PLNTwitter : IPingLineNotifier
         return Array.Empty<Notification>();
     }
 
-    public async Task ProcessItem(XElement item, List<Notification> notifications)
+    public async Task ProcessItem(RSS2Entry item, List<Notification> notifications)
     {
-        var guid = item.Element("guid")?.Value ?? "";
-        var title = item.Element("title")?.Value ?? "(untitled post)";
-        var link = item.Element("link")?.Value ?? $"https://twitter.com/{accountName}";
-        var pubDate = item.Element("pubDate")?.Value ?? null;
-        DateTime time;
-
-        if(pubDate == null || !DateTime.TryParse(pubDate, out time)) time = DateTime.Now;
-
         var notification = new Notification()
         {
-            Message = $"@{accountName} posted \"{title}\"",
+            Message = $"@{accountName} posted \"{item.Title}\"",
             Sender = this,
-            ImageSourceURL = ExtractMainImage(item),
-            GoToLink = link,
-            Time = time
+            ImageSourceURL = ExtractMainImage(item.Description ?? ""),
+            GoToLink = item.Link,
+            Time = item.PubDate
         };
         notifications.Add(notification);
     }
@@ -165,6 +150,7 @@ internal class PLNTwitter : IPingLineNotifier
         var saved = new PLNTwitter(notifID, false);
         saved.accountName = reader.ReadString();
         saved.rssUrl = reader.ReadString();
+        saved.parser = new RSS2Parser(saved.rssUrl);
         return saved;
     }
 
@@ -172,11 +158,8 @@ internal class PLNTwitter : IPingLineNotifier
     public string GetTypeName() => TypeName;
 
     private static readonly Regex ImgRegex = new Regex("<img[^>]+src=[\"']([^\"']+)[\"']", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-    public static string? ExtractMainImage(XElement item)
+    public static string? ExtractMainImage(string description)
     {
-        if (item == null) return null;
-
-        var description = item.Element("description")?.Value;
         if (string.IsNullOrWhiteSpace(description)) return null;
 
         var match = ImgRegex.Match(description);
